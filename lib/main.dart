@@ -1,7 +1,10 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:fluttertimer/ticker.dart';
 import 'package:fluttertimer/timer.dart';
+import 'package:fluttertimer/bloc/timer_bloc.dart';
+import 'package:fluttertimer/bloc/timer_event.dart';
+import 'package:fluttertimer/bloc/timer_state.dart';
 
 void main() => runApp(MyApp());
 
@@ -13,7 +16,10 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: MyHomePage(title: 'Flutter Demo Home Page'),
+      home: BlocProvider(
+        create: (context) => TimerBloc(ticker: Ticker()),
+        child: MyHomePage(title: 'Flutter Demo Home Page'),
+      ),
     );
   }
 }
@@ -34,33 +40,10 @@ class _MyHomePageState extends State<MyHomePage> {
       fontFamily: 'Ubuntu');
   static TextStyle _dateStyle = TextStyle(fontSize: 14.0);
 
-  int _time = 0;
-
-  _MyHomePageState() {
-    startTimeout(1000);
-  }
-
-  static const timeout = const Duration(seconds: 1);
-  static const ms = const Duration(milliseconds: 1);
-
-  startTimeout([int milliseconds]) {
-    var duration = milliseconds == null ? timeout : ms * milliseconds;
-    return new Timer(duration, handleTimeout);
-  }
-
-  void handleTimeout() {
-    setState(() {
-      if (_time == 86400) {
-        _time = 0;
-      } else {
-        _time++;
-      }
-    });
-    startTimeout(1000);
-  }
-
   @override
   Widget build(BuildContext context) {
+    final TimerBloc bloc = BlocProvider.of<TimerBloc>(context);
+    bloc.add(Start(duration: 0));
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
@@ -68,22 +51,24 @@ class _MyHomePageState extends State<MyHomePage> {
       body: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
-          TimerView(
-            timeStyle: _timeStyle,
-            dateStyle: _dateStyle,
-            dateTime: DateTime.now(),
-            progress: _time,
-          ),
-          Slider(
-            value: _time.toDouble(),
-            min: 0,
-            max: 86400,
-            onChanged: (t) {
-              setState(() {
-                _time = t.toInt();
-              });
-            },
-          )
+          BlocBuilder<TimerBloc, TimerState>(builder: (context, state) {
+            return TimerView(
+              timeStyle: _timeStyle,
+              dateStyle: _dateStyle,
+              dateTime: DateTime.now(),
+              progress: state.progress,
+            );
+          }),
+          BlocBuilder<TimerBloc, TimerState>(builder: (context, state) {
+            return Slider(
+              value: state.progress.toDouble(),
+              min: 0,
+              max: 86400,
+              onChanged: (t) {
+                bloc.add(Slide(duration: t.toInt()));
+              },
+            );
+          })
         ],
       ),
     );
